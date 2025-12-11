@@ -91,7 +91,7 @@ class IsaacEnv(EnvBase):
         # store inputs to class
         self.cfg = cfg
         self.enable_render(not headless)
-        self.enable_viewport = not headless
+        self.enable_viewport = getattr(self.cfg.sim, "enable_replicator", False)
         # extract commonly used parameters
         self.num_envs = self.cfg.env.num_envs
         self.max_episode_length = self.cfg.env.max_episode_length

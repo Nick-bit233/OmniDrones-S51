@@ -207,6 +207,59 @@ def ravel_composite(
         raise TypeError
 
 
+class VelController(Transform):
+    def __init__(
+        self,
+        controller,
+        yaw_control: bool = True,
+        action_key: str = ("agents", "action"),
+    ):
+        super().__init__([], in_keys_inv=[("info", "drone_state")])
+        self.controller = controller
+        self.yaw_control = yaw_control
+        self.action_key = action_key
+    
+
+    def transform_input_spec(self, input_spec: TensorSpec) -> TensorSpec:
+        action_spec = input_spec[("full_action_spec", *self.action_key)]
+        if (self.yaw_control):
+            spec = Unbounded(action_spec.shape[:-1]+(4,), device=action_spec.device)
+        else:
+            spec = Unbounded(action_spec.shape[:-1]+(3,), device=action_spec.device)
+        input_spec[("full_action_spec", *self.action_key)] = spec
+        return input_spec
+    
+    def _inv_call(self, tensordict: TensorDictBase) -> TensorDictBase:
+        # print("tensordict size: ", tensordict.shape)
+        # print("tensor dict: ", tensordict)
+        drone_state = tensordict[("info", "drone_state")][..., :13]
+        # print("drone state shape: ", drone_state.shape)
+
+        action = tensordict[self.action_key]
+        if (self.yaw_control):
+            target_vel, target_yaw = action.split([3, 1], -1)
+            target_vel = target_vel.unsqueeze(1)
+            target_yaw = target_yaw.unsqueeze(1)
+            target_yaw = target_yaw * torch.pi
+        else:
+            target_vel = action.unsqueeze(1)
+            # print("target vel: ", target_vel)
+            # target_yaw = torch.zeros(action.shape[:-1] + (1,), device=action.device)
+            target_yaw = None
+
+        # print("drone vel shape: ", target_vel.shape)
+        # print("target vel: ", target_vel)
+        cmds = self.controller(
+            drone_state, 
+            target_vel=target_vel, 
+            target_yaw=target_yaw
+        )
+
+        torch.nan_to_num_(cmds, 0.)
+        tensordict.set(self.action_key, cmds)
+        return tensordict
+    
+
 class RateController(Transform):
     def __init__(
         self,

@@ -140,8 +140,11 @@ class Camera:
                 img_tensor = wp.to_torch(v.get_data(device=self.device))
                 if img_tensor.dim() == 2:
                     img_tensor = img_tensor.unsqueeze(0)
-                else:
+                elif img_tensor.dim() >= 3:  # shape: HWC
                     img_tensor = img_tensor.permute(2, 0, 1)
+                else:
+                    # unexpected shape, do not add into the dict
+                    continue
                 images_dict[k] = img_tensor
             images_list.append(TensorDict(images_dict, []))
         return torch.stack(images_list)

@@ -114,6 +114,10 @@ class LeePositionController(ControllerBase):
         )
         self.requires_grad_(False)
 
+    # make forward signature same as compute
+    def forward(self, **kwargs):
+        return self.compute(**kwargs)
+
     def compute(
         self,
         root_state: torch.Tensor,
